@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>弹弹弹</title>
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+        }
+        html,body{
+            width: 100%;
+            height: 100%;
+        }
+
+
+    </style>
+</head>
+<body>
+
+<svg width="100%" height="100%" id="svg">
+
+</svg>
+
+
+</body>
+
+<script>
+
+    var SVG_NS = 'http://www.w3.org/2000/svg';
+    var svg=document.getElementById('svg')
+
+    Array.prototype.remove=function(ele){
+        var res=[]
+        for(var i=0;i<this.length;i++){
+            if(this[i]!=ele){
+                res.push(this[i])
+            }
+        }
+        return res
+    }
+
+    function Vector(l1,l2){
+        return new V(l1,l2)
+    }
+    function V(l1,l2){
+        if(!l2){
+            l2=l1
+            l1=[0,0]
+        }
+        this.elements=[l2[0]-l1[0],l2[1]-l1[1]]
+        return this
+    }
+
+    V.prototype.plus=function(v){
+        var ele= v.elements
+        var arr=[]
+        this.elements.forEach(function(value,id){
+            arr.push(value+ele[id])
+        })
+
+        return Vector(arr)
+    }
+    V.prototype.minus=function(v){
+        var ele= v.elements
+        var arr=[]
+        this.elements.forEach(function(value,id){
+            arr.push(value-ele[id])
+        })
+        return Vector(arr)
+    }
+    V.prototype.multiply=function(v){
+        var res=[]
+        if(typeof v=="number"){
+            var arr=[]
+            this.elements.forEach(function(value,id){
+                arr.push(value*v)
+            })
+            res=arr
+        }
+
+        if(typeof v=="object"){
+            for(var i=0;i< v.elements.length;i++){
+                var b=this.elements[i]* v.elements[i]
+                res.push(b)
+            }
+        }
+        return Vector(res)
+    }
+    V.prototype.i=function(){
+        var long=this.long()
+        return this.multiply(1/long)
+    }
+    V.prototype.long=function(){
+        return Math.sqrt(this.elements[0]*this.elements[0]+this.elements[1]*this.elements[1])
+    }
+    V.prototype.phi=function(v) {
+        var up = this.multiply(v)
+        var down = this.long() * v.long()
+        return Math.round(Math.acos(up / down) * 180 / Math.PI)
+    }
+    V.prototype.get=function(){
+        return this.elements
+    }
+
+    function Points(){
+        this.pos=Vector([random(300,800),random(200,500)]);
+        this.v=Vector([0,0]);
+    }
+    Points.prototype.f=function(){
+        var sum=Vector([0,0])
+        for(var i=0;i<this.watcher.length;i++){
+            var fxy=this.pos.minus(this.watcher[i].pos)
+            var fs =fxy.i().multiply((T-fxy.long()))
+            sum=sum.plus(fs)
+        }
+
+
+        this.move(sum)
+    }
+    Points.prototype.addWatcher=function(arr){
+        this.watcher=this.watcher || []
+        for(var i=0;i<arr.length;i++){
+            this.watcher.push(arr[i])
+        }
+    }
+    Points.prototype.move=function(sum){
+        this.a=sum
+        var This=this
+        this.v=this.v.plus(This.a.multiply(1/100))
+        this.pos=this.pos.plus(this.v.multiply(1/100))
+        this.v=this.v.multiply(0.99)
+    }
+
+
+
+    function attr(){
+        var obj=arguments[0]
+        var json=arguments[1]
+        if(typeof json=="object" && !arguments[2]){
+            for(var key in json){
+                obj.setAttribute(key,json[key])
+            }
+            return true
+        }
+        if(typeof arguments[1]=="string" && arguments[2]){
+
+            obj.setAttribute(arguments[1],arguments[2])
+        }
+        if(typeof arguments[1]=="string" && !arguments[2]){
+            return obj.getAttribute(arguments[1])
+        }
+    }
+
+    function rand_color(){
+        return "hsl("+random(0,360)+","+random(0,100)+"%,"+random(0,50)+"%)"
+    }
+
+    function random(a,b){
+        return Math.floor(a+Math.random()*(b-a))
+    }
+
+
+    function create_surface(num){
+        var c=[],l=[],f={}
+        for(var i=0;i<num;i++){
+            var circle=document.createElementNS(SVG_NS,'circle')
+            attr(circle,{
+                fill:rand_color(),
+                r:random(20,50),
+            })
+            svg.appendChild(circle)
+            c.push(circle)
+        }
+        var k=-1
+        for(var i=0;i<num;i++){
+
+            for(var j=i+1;j<num;j++){
+                if(j!=i){
+                    var line=document.createElementNS(SVG_NS,'line')
+                    attr(line,{
+                        stroke:rand_color(),
+                    })
+                    k++
+                    l.push(line)
+                    f[i+" "+j]=k
+                    svg.appendChild(line)
+                }
+            }
+        }
+        return {
+            circle:c,
+            line:l,
+            info:f
+        }
+    }
+
+
+</script>
+<script>
+
+
+
+
+    var T=300
+    var ball_nums=10
+    var shape=create_surface(ball_nums)
+    var panel=[]
+    for(var i=0;i<ball_nums;i++){
+        var p=new Points()
+        panel.push(p)
+        window["p"+i]=p
+
+    }
+    for(var i=0;i<panel.length;i++){
+        panel[i].addWatcher(panel.remove(panel[i]))
+    }
+
+    var timer=null
+
+    function shake_fn(){
+        var ball=shape.circle
+        var line=shape.line
+        var info=shape.info
+        for(var i=0;i<ball_nums;i++){
+            window['p'+i].f()
+            attr(ball[i],{
+                cx:window['p'+i].pos.get()[0],
+                cy:window['p'+i].pos.get()[1]
+            })
+        }
+        for(var i=0;i<ball.length;i++){
+
+            for(var j=i+1;j<ball.length;j++){
+                attr(line[info[i+" "+j]],{
+                    x1:window['p'+i].pos.get()[0],
+                    y1:window['p'+i].pos.get()[1],
+                    x2:window['p'+j].pos.get()[0],
+                    y2:window['p'+j].pos.get()[1],
+                })
+            }
+        }
+    }
+
+    function shake(){
+        clearInterval(timer)
+        timer=setInterval(shake_fn,13)
+
+    }
+    shake()
+
+    for(var i= 0,obj=shape.circle;i<obj.length;i++){
+        obj[i].index=i
+        obj[i].onmousedown=function(e){
+            var This=this
+            var dis={
+                x: e.clientX-This.getAttribute("cx"),
+                y: e.clientY-This.getAttribute("cy")
+            }
+            document.onmousemove=function(e){
+                var id=This.index
+                window['p'+id].pos=Vector([e.clientX-dis.x, e.clientY-dis.y])
+                shake_fn()
+            }
+            document,onmouseup=function(e){
+                document.onmousemove=null
+                document.onmouseup=null
+                shake()
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+</script>
+</html>
